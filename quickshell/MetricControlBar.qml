@@ -1,22 +1,30 @@
 import QtQuick
 
-Rectangle {
-  id: metricControlBar
-  width: 34
-  height: 170
-  color: active ? "white" : "transparent"
+// A vertical gauge: dark empty track, bright ink rising from the bottom.
+//
+// There used to be an `active` flag that reverse-videoed the whole chip, and
+// the gauge colours flipped with it. That is unfixable, not just miscoloured:
+// on a white chip the only colour brighter than the track is the chip itself,
+// so a full bar has to be drawn in black and reads as a solid block of absence.
+// A gauge cannot be reverse-videoed. Ink is always bright, track is always
+// dark, in the only state there is.
+Item {
+  id: bar
 
   property string icon: "?"
   property int value: 0
-  property bool active: false
-  property real outlineWidth: 1.8
+  // the OSD spells the percentage out below the bar, so it hides this one
+  property bool showValue: true
 
   signal requestedValue(int value)
-  signal interactionStarted()
-  signal interactionFinished()
+  signal interactionStarted
+  signal interactionFinished
 
-  function clampedValue(rawValue) {
-    return Math.max(0, Math.min(100, rawValue));
+  implicitWidth: Theme.spaceXxl
+  implicitHeight: Theme.spaceXxl * 5
+
+  function clampedValue(raw) {
+    return Math.max(0, Math.min(100, raw));
   }
 
   function valueFromY(localY) {
@@ -24,57 +32,49 @@ Rectangle {
     return clampedValue(Math.round(ratio * 100));
   }
 
-  Behavior on color {
-    ColorAnimation {
-      duration: 110
-    }
-  }
-
   Text {
     id: iconText
     anchors {
       top: parent.top
-      topMargin: 5
+      topMargin: Theme.spaceXs
       horizontalCenter: parent.horizontalCenter
     }
-    color: metricControlBar.active ? "black" : "white"
-    font.family: "JetBrainsMono Nerd Font"
-    font.weight: Font.Bold
-    font.pixelSize: 12
-    text: metricControlBar.icon
-
-    Behavior on color {
-      ColorAnimation {
-        duration: 110
-      }
-    }
+    color: Theme.fg
+    font.family: Theme.mono
+    font.weight: Theme.fontWeight
+    font.pixelSize: Theme.fontBody
+    text: bar.icon
   }
 
   Rectangle {
     id: levelTrack
     anchors {
       top: iconText.bottom
-      topMargin: 7
+      topMargin: Theme.spaceSm
       bottom: valueText.top
-      bottomMargin: 7
+      bottomMargin: Theme.spaceSm
       horizontalCenter: parent.horizontalCenter
     }
-    width: 12
-    color: metricControlBar.active ? "black" : "white"
+    width: Theme.spaceMd
+    // empty track: always the dark one
+    color: Theme.bg
 
+    // fill: always the ink
     Rectangle {
       anchors {
         left: parent.left
         right: parent.right
         bottom: parent.bottom
       }
-      height: parent.height * metricControlBar.clampedValue(metricControlBar.value) / 100
-      color: metricControlBar.active ? "white" : "black"
+      height: parent.height * bar.clampedValue(bar.value) / 100
+      color: Theme.fg
     }
 
+    // end caps, also ink: they mark the track's extent, which is the only thing
+    // showing where 0 and 100 are once the track itself is background-coloured
     Rectangle {
-      height: metricControlBar.outlineWidth
-      color: metricControlBar.active ? "white" : "black"
+      height: Theme.border
+      color: Theme.fg
       anchors {
         left: parent.left
         right: parent.right
@@ -83,8 +83,8 @@ Rectangle {
     }
 
     Rectangle {
-      height: metricControlBar.outlineWidth
-      color: metricControlBar.active ? "white" : "black"
+      height: Theme.border
+      color: Theme.fg
       anchors {
         left: parent.left
         right: parent.right
@@ -96,37 +96,34 @@ Rectangle {
       anchors.fill: parent
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
-      onPressed: function(mouse) {
-        metricControlBar.interactionStarted();
-        metricControlBar.requestedValue(metricControlBar.valueFromY(mouse.y));
+      onPressed: function (mouse) {
+        bar.interactionStarted();
+        bar.requestedValue(bar.valueFromY(mouse.y));
       }
-      onPositionChanged: function(mouse) {
+      onPositionChanged: function (mouse) {
         if (pressed) {
-          metricControlBar.requestedValue(metricControlBar.valueFromY(mouse.y));
+          bar.requestedValue(bar.valueFromY(mouse.y));
         }
       }
-      onReleased: metricControlBar.interactionFinished()
-      onCanceled: metricControlBar.interactionFinished()
+      onReleased: bar.interactionFinished()
+      onCanceled: bar.interactionFinished()
     }
   }
 
   Text {
     id: valueText
+    visible: bar.showValue
+    // collapses so the track can claim the space when the OSD hides it
+    height: visible ? implicitHeight : 0
     anchors {
       bottom: parent.bottom
-      bottomMargin: 5
+      bottomMargin: Theme.spaceXs
       horizontalCenter: parent.horizontalCenter
     }
-    color: metricControlBar.active ? "black" : "white"
-    font.family: "JetBrainsMono Nerd Font"
-    font.weight: Font.Bold
-    font.pixelSize: 10
-    text: metricControlBar.clampedValue(metricControlBar.value).toString().padStart(2, "0")
-
-    Behavior on color {
-      ColorAnimation {
-        duration: 110
-      }
-    }
+    color: Theme.fg
+    font.family: Theme.mono
+    font.weight: Theme.fontWeight
+    font.pixelSize: Theme.fontMicro
+    text: bar.clampedValue(bar.value).toString().padStart(2, "0")
   }
 }

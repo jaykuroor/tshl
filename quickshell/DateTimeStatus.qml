@@ -1,12 +1,21 @@
 import Quickshell
 import QtQuick
 
+// Time and date are one group, so they sit closer to each other than the group
+// sits to the battery beside it. That ordering is the whole point: before, the
+// time/date gap was 24px of ink-to-ink while the gap to the battery was 19, so
+// the eye read the date as belonging to the battery.
 Rectangle {
   id: dateTimeStatus
-  width: clock.width + 14 + dateIndicator.width
-  color: dateTimeHover.hovered ? "white" : "transparent"
 
-  property int sectionPadding: 4
+  width: readout.width + Theme.spaceXs * 2
+  color: dateTimeHover.hovered ? Theme.fg : "transparent"
+
+  Behavior on color {
+    ColorAnimation {
+      duration: Theme.fast
+    }
+  }
 
   SystemClock {
     id: systemClock
@@ -17,48 +26,40 @@ Rectangle {
     id: dateTimeHover
   }
 
-  Rectangle {
-    id: dateIndicator
-    anchors {
-      right: parent.right
-      verticalCenter: parent.verticalCenter
-    }
-    width: dateText.implicitWidth + dateTimeStatus.sectionPadding * 2
-    height: parent.height
-    color: "transparent"
+  Row {
+    id: readout
+    anchors.centerIn: parent
+    anchors.verticalCenterOffset: Theme.textNudge
+    spacing: Theme.spaceSm
 
-    property var weekdayLetters: ["U", "M", "T", "W", "R", "F", "S"]
+    readonly property var weekdayLetters: ["U", "M", "T", "W", "R", "F", "S"]
 
     Text {
-      id: dateText
-      anchors.centerIn: parent
-      color: dateTimeHover.hovered ? "black" : "white"
-      font.family: "JetBrainsMono Nerd Font"
-      font.weight: Font.Bold
-      font.pixelSize: 12
-      text: systemClock.date.getDate() + dateIndicator.weekdayLetters[systemClock.date.getDay()]
-    }
-  }
-
-  Rectangle {
-    id: clock
-    anchors {
-      right: dateIndicator.left
-      rightMargin: 16
-      verticalCenter: parent.verticalCenter
-    }
-    width: clockText.implicitWidth + dateTimeStatus.sectionPadding * 2
-    height: parent.height
-    color: "transparent"
-
-    Text {
-      id: clockText
-      anchors.centerIn: parent
-      color: dateTimeHover.hovered ? "black" : "white"
-      font.family: "JetBrainsMono Nerd Font"
-      font.weight: Font.Bold
-      font.pixelSize: 12
+      color: dateTimeHover.hovered ? Theme.bg : Theme.fg
+      font.family: Theme.mono
+      font.weight: Theme.fontWeight
+      font.pixelSize: Theme.fontBody
       text: Qt.formatDateTime(systemClock.date, "hh:mm")
+
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.fast
+        }
+      }
+    }
+
+    Text {
+      color: dateTimeHover.hovered ? Theme.bg : Theme.fg
+      font.family: Theme.mono
+      font.weight: Theme.fontWeight
+      font.pixelSize: Theme.fontBody
+      text: systemClock.date.getDate() + readout.weekdayLetters[systemClock.date.getDay()]
+
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.fast
+        }
+      }
     }
   }
 }

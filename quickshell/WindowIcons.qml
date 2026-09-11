@@ -5,8 +5,10 @@ Item {
 
   required property string outputName
 
-  readonly property string mono: "JetBrainsMono Nerd Font"
-  readonly property int cellSize: 14
+  readonly property string mono: Theme.mono
+  // 15px is the one size where JetBrains Mono's 0.6em advance lands on a whole
+  // number (9.0), so the three-column cell is exactly 27px with no rounding
+  readonly property int cellSize: Theme.fontLarge
   // One dock slot is exactly three monospace columns: shade, icon, shade.
   // Measured off ruler.implicitWidth rather than fm.advanceWidth(): the latter
   // is a method call, so the binding cannot re-run when the font finishes
@@ -68,8 +70,9 @@ Item {
   Behavior on blurCenter {
     enabled: !slide.running
     NumberAnimation {
+      // signature smear timing, deliberately slower than any chrome duration
       duration: 760
-      easing.type: Easing.OutCubic
+      easing.type: Theme.easing
     }
   }
 
@@ -91,8 +94,9 @@ Item {
     target: iconRow
     property: "y"
     to: 0
+    // signature workspace wipe, likewise deliberate
     duration: 460
-    easing.type: Easing.OutCubic
+    easing.type: Theme.easing
   }
 
   FontMetrics {
@@ -112,7 +116,7 @@ Item {
     anchors.right: viewport.left
     anchors.rightMargin: strip.columnWidth
     anchors.verticalCenter: parent.verticalCenter
-    color: "#8a8a8a"
+    color: Theme.dim
     font.family: strip.mono
     font.pixelSize: strip.cellSize
     renderType: Text.QtRendering
@@ -124,13 +128,13 @@ Item {
     Behavior on opacity {
       enabled: !slide.running
       NumberAnimation {
-        duration: 170
+        duration: Theme.fast
       }
     }
 
     MouseArea {
       anchors.fill: parent
-      anchors.margins: -4
+      anchors.margins: -Theme.spaceXs
       // only live while the counter is actually showing, which also guarantees
       // there is something at the far end to jump to
       enabled: strip.hiddenLeft > 0
@@ -143,7 +147,7 @@ Item {
     anchors.left: viewport.right
     anchors.leftMargin: strip.columnWidth
     anchors.verticalCenter: parent.verticalCenter
-    color: "#8a8a8a"
+    color: Theme.dim
     font.family: strip.mono
     font.pixelSize: strip.cellSize
     renderType: Text.QtRendering
@@ -153,13 +157,13 @@ Item {
     Behavior on opacity {
       enabled: !slide.running
       NumberAnimation {
-        duration: 170
+        duration: Theme.fast
       }
     }
 
     MouseArea {
       anchors.fill: parent
-      anchors.margins: -4
+      anchors.margins: -Theme.spaceXs
       enabled: strip.hiddenRight > 0
       cursorShape: Qt.PointingHandCursor
       onClicked: NiriService.focusAndCenter(strip.items[strip.items.length - 1].id)
@@ -184,8 +188,8 @@ Item {
       Behavior on x {
         enabled: !slide.running
         NumberAnimation {
-          duration: 330
-          easing.type: Easing.OutCubic
+          duration: Theme.slow
+          easing.type: Theme.easing
         }
       }
 
@@ -204,11 +208,11 @@ Item {
 
           Rectangle {
             anchors.fill: parent
-            color: iconCell.active ? "white" : "transparent"
+            color: iconCell.active ? Theme.fg : "transparent"
 
             Behavior on color {
               ColorAnimation {
-                duration: 170
+                duration: Theme.fast
               }
             }
           }
@@ -250,9 +254,9 @@ Item {
 
           Text {
             anchors.centerIn: parent
-            color: iconCell.active ? "black" : "white"
+            color: iconCell.active ? Theme.bg : Theme.fg
             font.family: strip.mono
-            font.weight: Font.Bold
+            font.weight: Theme.fontWeight
             font.pixelSize: strip.cellSize
             // distance-field glyphs keep subpixel positions while the row slides
             renderType: Text.QtRendering
@@ -260,7 +264,7 @@ Item {
 
             Behavior on color {
               ColorAnimation {
-                duration: 170
+                duration: Theme.fast
               }
             }
           }

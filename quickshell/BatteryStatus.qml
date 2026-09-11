@@ -4,22 +4,24 @@ import QtQuick
 
 Rectangle {
   id: batteryStatus
-  width: statusContent.implicitWidth + 10
-  color: activeHover ? "white" : "transparent"
+  width: statusContent.implicitWidth + Theme.spaceXs * 2
+  color: activeHover ? Theme.fg : "transparent"
 
   property var popupParentWindow
   property var popupAnchorItem: batteryStatus
   property bool menuOpen: false
   property bool menuVisible: false
   property bool activeHover: batteryMouse.containsMouse || menuOpen
-  property int menuTargetWidth: 120
-  property int menuTargetHeight: profileItems.length * 22 + 8
+  // 12 monospace columns of body text (86.4) plus row and menu padding,
+  // rounded up onto the 4-grid. The old 120 left the labels floating.
+  property int menuTargetWidth: 96
+  property int menuTargetHeight: profileItems.length * Theme.rowHeight + Theme.spaceXs * 2
   property real menuAnimatedHeight: menuOpen ? menuTargetHeight : 0
 
   Behavior on menuAnimatedHeight {
     NumberAnimation {
-      duration: 210
-      easing.type: Easing.OutCubic
+      duration: Theme.base
+      easing.type: Theme.easing
     }
   }
 
@@ -62,13 +64,13 @@ Rectangle {
 
   Behavior on color {
     ColorAnimation {
-      duration: 120
+      duration: Theme.fast
     }
   }
 
   Timer {
     id: closeMenuTimer
-    interval: 230
+    interval: Theme.slow
     onTriggered: {
       if (!batteryStatus.menuOpen) {
         batteryStatus.menuVisible = false;
@@ -97,31 +99,32 @@ Rectangle {
   Row {
     id: statusContent
     anchors.centerIn: parent
+    anchors.verticalCenterOffset: Theme.textNudge
     spacing: 0
 
-    property color targetTextColor: batteryStatus.activeHover ? "black" : "white"
+    property color targetTextColor: batteryStatus.activeHover ? Theme.bg : Theme.fg
     property color textColor: targetTextColor
 
     Behavior on textColor {
       ColorAnimation {
-        duration: 120
+        duration: Theme.fast
       }
     }
 
     Text {
       color: statusContent.textColor
-      font.family: "JetBrainsMono Nerd Font"
-      font.weight: Font.Bold
-      font.pixelSize: 12
+      font.family: Theme.mono
+      font.weight: Theme.fontWeight
+      font.pixelSize: Theme.fontBody
       text: "["
     }
 
     Text {
       id: profileLetter
       color: statusContent.textColor
-      font.family: "JetBrainsMono Nerd Font"
-      font.weight: Font.Bold
-      font.pixelSize: 12
+      font.family: Theme.mono
+      font.weight: Theme.fontWeight
+      font.pixelSize: Theme.fontBody
       text: batteryStatus.profileIcon(PowerProfiles.profile)
       SequentialAnimation {
         id: profileBlink
@@ -130,22 +133,22 @@ Rectangle {
           target: profileLetter
           property: "opacity"
           to: 0
-          duration: 300
+          duration: Theme.base
         }
         NumberAnimation {
           target: profileLetter
           property: "opacity"
           to: 1
-          duration: 300
+          duration: Theme.base
         }
       }
     }
 
     Text {
       color: statusContent.textColor
-      font.family: "JetBrainsMono Nerd Font"
-      font.weight: Font.Bold
-      font.pixelSize: 12
+      font.family: Theme.mono
+      font.weight: Theme.fontWeight
+      font.pixelSize: Theme.fontBody
       text: batteryStatus.available
         ? " " + batteryStatus.percentage + "%]" + (batteryStatus.charging ? "+" : "-")
         : " --%] "
@@ -170,7 +173,7 @@ Rectangle {
         target: statusContent
         property: "scale"
         to: 1
-        duration: 180
+        duration: Theme.base
         easing.type: Easing.OutBack
       }
     }
@@ -205,29 +208,29 @@ Rectangle {
       id: profileMenu
       width: batteryStatus.menuTargetWidth
       height: Math.max(1, batteryStatus.menuAnimatedHeight)
-      color: "black"
+      color: Theme.bg
       clip: true
       transformOrigin: Item.TopRight
 
-      property real outlineWidth: 1.8
+      property real outlineWidth: Theme.border
 
       Rectangle {
         width: profileMenu.outlineWidth
         height: parent.height
-        color: "white"
+        color: Theme.fg
         anchors.left: parent.left
       }
 
       Rectangle {
         width: profileMenu.outlineWidth
         height: parent.height
-        color: "white"
+        color: Theme.fg
         anchors.right: parent.right
       }
 
       Rectangle {
         height: profileMenu.outlineWidth
-        color: "white"
+        color: Theme.fg
         anchors {
           left: parent.left
           right: parent.right
@@ -236,23 +239,24 @@ Rectangle {
       }
 
       Column {
-        x: 4
-        y: batteryStatus.menuOpen ? 4 : -14
-        width: parent.width - 8
-        spacing: 2
+        x: Theme.spaceXs
+        y: batteryStatus.menuOpen ? Theme.spaceXs : -Theme.spaceMd
+        width: parent.width - Theme.spaceXs * 2
+        // contiguous rows: the hover fill reads as one band instead of stripes
+        spacing: 0
         opacity: batteryStatus.menuOpen ? 1 : 0
 
         Behavior on opacity {
           NumberAnimation {
-            duration: 130
-            easing.type: Easing.OutCubic
+            duration: Theme.fast
+            easing.type: Theme.easing
           }
         }
 
         Behavior on y {
           NumberAnimation {
-            duration: 210
-            easing.type: Easing.OutCubic
+            duration: Theme.base
+            easing.type: Theme.easing
           }
         }
 
@@ -262,41 +266,46 @@ Rectangle {
           Rectangle {
             id: profileRow
             width: parent.width
-            height: 20
-            color: inverted ? "white" : "transparent"
+            height: Theme.rowHeight
+            color: inverted ? Theme.fg : "transparent"
 
             property bool active: PowerProfiles.profile === modelData.profile
             property bool inverted: profileMouse.containsMouse || active
 
             Behavior on color {
               ColorAnimation {
-                duration: 110
+                duration: Theme.fast
               }
             }
 
             Text {
               id: rowText
-              anchors.fill: parent
-              leftPadding: 5
-              rightPadding: 5
-              color: profileRow.inverted ? "black" : "white"
-              font.family: "JetBrainsMono Nerd Font"
-              font.weight: Font.Bold
-              font.pixelSize: 12
+              anchors {
+                left: parent.left
+                right: parent.right
+                verticalCenter: parent.verticalCenter
+                verticalCenterOffset: Theme.textNudge
+              }
+              leftPadding: Theme.spaceXs
+              rightPadding: Theme.spaceXs
+              color: profileRow.inverted ? Theme.bg : Theme.fg
+              font.family: Theme.mono
+              font.weight: Theme.fontWeight
+              font.pixelSize: Theme.fontBody
               horizontalAlignment: Text.AlignLeft
               verticalAlignment: Text.AlignVCenter
               text: (profileRow.active ? ">" : " ") + modelData.icon + " [" + modelData.label + "]"
 
               Behavior on color {
                 ColorAnimation {
-                  duration: 110
+                  duration: Theme.fast
                 }
               }
 
               Behavior on x {
                 NumberAnimation {
-                  duration: 120
-                  easing.type: Easing.OutCubic
+                  duration: Theme.fast
+                  easing.type: Theme.easing
                 }
               }
             }
@@ -304,24 +313,24 @@ Rectangle {
             Rectangle {
               anchors {
                 right: parent.right
-                rightMargin: 5
+                rightMargin: Theme.spaceXs
                 verticalCenter: parent.verticalCenter
               }
-              width: profileRow.active ? 5 : 0
-              height: 5
-              color: profileRow.inverted ? "black" : "white"
+              width: profileRow.active ? Theme.spaceXs : 0
+              height: Theme.spaceXs
+              color: profileRow.inverted ? Theme.bg : Theme.fg
               opacity: profileRow.active ? 1 : 0
 
               Behavior on width {
                 NumberAnimation {
-                  duration: 140
+                  duration: Theme.fast
                   easing.type: Easing.OutBack
                 }
               }
 
               Behavior on opacity {
                 NumberAnimation {
-                  duration: 100
+                  duration: Theme.fast
                 }
               }
             }

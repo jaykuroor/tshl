@@ -10,7 +10,10 @@ Scope {
   IpcHandler {
     target: "controls"
 
-    function reveal(metric) {
+    // the parameter type is load-bearing: Quickshell refuses to expose an IPC
+    // function with an untyped argument, so an untyped `metric` meant every
+    // `quickshell ipc call controls reveal ...` from the keybinds was dropped
+    function reveal(metric: string): void {
       shellRoot.revealControls(metric);
     }
   }
@@ -19,6 +22,7 @@ Scope {
     model: Quickshell.screens
     delegate: Component {
       Scope {
+        id: screenScope
         required property var modelData
 
         PanelWindow {
@@ -29,26 +33,28 @@ Scope {
             left: true
             right: true
           }
-          implicitHeight: 35
-          color: "black"
+          implicitHeight: Theme.barHeight
+          color: Theme.bg
 
           Rectangle {
             id: barFrame
             anchors.fill: parent
-            anchors.leftMargin: 8
-            anchors.rightMargin: 8
-            anchors.topMargin: 2
+            anchors.leftMargin: Theme.barInset
+            anchors.rightMargin: Theme.barInset
+            // the frame hangs off the top edge, so it is guttered above and
+            // open below; the dropdown breaks through the bottom line
+            anchors.topMargin: Theme.spaceXs
             anchors.bottomMargin: 0
-            color: "black"
+            color: Theme.bg
 
-            property real outlineWidth: 1.8
+            property real outlineWidth: Theme.border
             property real dropdownRight: width
             property real dropdownWidth: batteryStatus.menuVisible ? batteryStatus.menuTargetWidth : 0
             property real dropdownLeft: Math.max(0, dropdownRight - dropdownWidth)
 
             Rectangle {
               height: barFrame.outlineWidth
-              color: "white"
+              color: Theme.fg
               anchors {
                 left: parent.left
                 right: parent.right
@@ -58,7 +64,7 @@ Scope {
 
             Rectangle {
               width: barFrame.outlineWidth
-              color: "white"
+              color: Theme.fg
               anchors {
                 left: parent.left
                 top: parent.top
@@ -68,7 +74,7 @@ Scope {
 
             Rectangle {
               width: barFrame.outlineWidth
-              color: "white"
+              color: Theme.fg
               anchors {
                 right: parent.right
                 top: parent.top
@@ -81,7 +87,7 @@ Scope {
               y: parent.height - height
               width: Math.max(0, barFrame.dropdownLeft)
               height: barFrame.outlineWidth
-              color: "white"
+              color: Theme.fg
             }
 
             Rectangle {
@@ -89,7 +95,7 @@ Scope {
               y: parent.height - height
               width: Math.max(0, parent.width - x)
               height: barFrame.outlineWidth
-              color: "white"
+              color: Theme.fg
             }
 
             Item {
@@ -108,26 +114,35 @@ Scope {
               }
               // symmetric about the bar centre: keeps a clear gap to whatever
               // sits on the right, and never wider than 80% of the screen so
-              // there is always a tenth of it blank on each side
-              width: Math.max(0, Math.min(2 * (statusGroup.x - 32) - barFrame.width, panel.screen.width * 0.8))
-              height: 24
+              // there is always a tenth of it blank on each side. The clearance
+              // is the widest gap in the bar — icons and status are separate
+              // regions, so they get more air than the groups inside them.
+              width: Math.max(0, Math.min(2 * (statusGroup.x - Theme.spaceXxl) - barFrame.width, panel.screen.width * 0.8))
+              height: Theme.rowHeight
             }
 
             Item {
               id: statusGroup
               anchors {
                 right: parent.right
-                rightMargin: 10
+                // 16 not 12: measured ink-to-ink, the gap between the two
+                // groups comes out at 20 logical once the glyph side bearings
+                // are counted, so the gap to the frame is matched to it by eye
+                // rather than on paper
+                rightMargin: Theme.spaceLg
                 verticalCenter: parent.verticalCenter
               }
-              width: dateTimeStatus.width + 10 + batteryStatus.width
-              height: 20
+              // gaps ascend with separation: 8 inside a group, 16 between
+              // groups (8 margin plus each chip's 4 of padding), 32 between
+              // the bar's two regions
+              width: dateTimeStatus.width + Theme.spaceSm + batteryStatus.width
+              height: Theme.rowHeight
 
               DateTimeStatus {
                 id: dateTimeStatus
                 anchors {
                   right: batteryStatus.left
-                  rightMargin: 10
+                  rightMargin: Theme.spaceSm
                   verticalCenter: parent.verticalCenter
                 }
                 height: parent.height
@@ -148,7 +163,10 @@ Scope {
         }
 
         VolumeBrightnessPanel {
-          modelData: modelData
+          // qualified deliberately: a bare `modelData` here binds the panel's
+          // own property to itself, which left it with no screen at all — so
+          // its vertical centring never ran and it pinned to the top margin
+          modelData: screenScope.modelData
           controller: shellRoot
         }
       }
