@@ -100,6 +100,19 @@ Scope {
               height: 1
             }
 
+            WindowIcons {
+              outputName: panel.screen.name
+              anchors {
+                horizontalCenter: parent.horizontalCenter
+                verticalCenter: parent.verticalCenter
+              }
+              // symmetric about the bar centre: keeps a clear gap to whatever
+              // sits on the right, and never wider than 80% of the screen so
+              // there is always a tenth of it blank on each side
+              width: Math.max(0, Math.min(2 * (statusGroup.x - 32) - barFrame.width, panel.screen.width * 0.8))
+              height: 24
+            }
+
             Item {
               id: statusGroup
               anchors {
