@@ -13,6 +13,10 @@ PanelWindow {
   required property int bandHeight
   property string icon: "?"
   property int value: 0
+  property bool canMute: false
+  property bool muted: false
+
+  signal muteToggled
 
   property bool open: false
   readonly property int boxWidth: Theme.spaceMd * 2 + Theme.spaceXxl
@@ -36,7 +40,8 @@ PanelWindow {
   implicitHeight: bandHeight
   color: "transparent"
   aboveWindows: true
-  focusable: false
+  // only while a value is being typed; see the drawer for why
+  focusable: metricBar.editing
   // Deliberately no exclusiveZone here. In Quickshell setting one defeats
   // ExclusionMode.Ignore: the surface stops reserving space but is still
   // pushed out of other surfaces' exclusive zones, which shoved this off
@@ -120,11 +125,15 @@ PanelWindow {
       }
 
       MetricControlBar {
+        id: metricBar
         anchors.centerIn: parent
         width: Theme.spaceXxl
         height: parent.height - Theme.spaceMd * 2
         icon: osd.icon
         value: osd.value
+        canMute: osd.canMute
+        muted: osd.muted
+        onMuteToggled: osd.muteToggled()
         onInteractionStarted: dismissTimer.stop()
         onInteractionFinished: dismissTimer.restart()
         onRequestedValue: value => osd.requestedValue(value)

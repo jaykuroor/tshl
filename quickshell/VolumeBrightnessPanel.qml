@@ -30,6 +30,10 @@ Scope {
   property int brightnessValue: 0
   property bool volumeDirty: false
   property bool brightnessDirty: false
+  property bool volumeMuted: false
+  // a value field takes keyboard focus, which a layer surface only gets if it
+  // asks; kept false the rest of the time so the shell never holds the keyboard
+  readonly property bool editing: volumeBar.editing || brightnessBar.editing
 
   // the two presentations are mutually exclusive: whichever opens closes the other
   onExpandedChanged: if (expanded) {
@@ -52,6 +56,11 @@ Scope {
     if (!volumeSetTimer.running) {
       volumeSetTimer.start();
     }
+  }
+
+  function toggleMute() {
+    Quickshell.execDetached(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]);
+    volumeRefreshTimer.restart();
   }
 
   function setBrightness(value) {
@@ -84,6 +93,7 @@ Scope {
       if (match) {
         root.volumeValue = root.clampPercent(Math.round(parseFloat(match[1]) * 100));
       }
+      root.volumeMuted = /\[MUTED\]/.test(volumeStdout.text);
     }
   }
 
@@ -161,7 +171,7 @@ Scope {
     implicitHeight: root.bandHeight
     color: "transparent"
     aboveWindows: true
-    focusable: false
+    focusable: root.editing
     // Deliberately no exclusiveZone here. In Quickshell setting one defeats
     // ExclusionMode.Ignore: the surface stops reserving space but is still
     // pushed out of other surfaces' exclusive zones, which shoved this off
@@ -253,10 +263,14 @@ Scope {
           spacing: Theme.spaceSm
 
           MetricControlBar {
+            id: volumeBar
             width: root.barWidth
             height: drawer.height - Theme.spaceMd * 2
             icon: ")))"
             value: root.volumeValue
+            canMute: true
+            muted: root.volumeMuted
+            onMuteToggled: root.toggleMute()
             onInteractionStarted: {
               root.dragging = true;
               hideTimer.stop();
@@ -269,6 +283,7 @@ Scope {
           }
 
           MetricControlBar {
+            id: brightnessBar
             width: root.barWidth
             height: drawer.height - Theme.spaceMd * 2
             icon: "*"
@@ -338,6 +353,9 @@ Scope {
     modelData: root.modelData
     bandHeight: root.bandHeight
     icon: root.osdMetric === "volume" ? ")))" : "*"
+    canMute: root.osdMetric === "volume"
+    muted: root.volumeMuted
+    onMuteToggled: root.toggleMute()
     value: root.osdMetric === "volume" ? root.volumeValue : root.brightnessValue
     onRequestedValue: value => root.osdMetric === "volume" ? root.setVolume(value) : root.setBrightness(value)
   }

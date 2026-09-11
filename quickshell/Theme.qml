@@ -30,6 +30,14 @@ Singleton {
     return px / theme.scale;
   }
 
+  // largest logical size not exceeding `px` that is still a whole number of
+  // panel pixels. For dividing a run of space into N equal parts that all have
+  // to land on the pixel grid — a ladder of meter rungs, say — where the
+  // straight division almost never does.
+  function snap(px) {
+    return Math.max(device(1), Math.floor(px * theme.scale) / theme.scale);
+  }
+
   // --- spacing ---------------------------------------------------------------
   // 4px soft grid. Every multiple of 4 is also a whole number of device pixels
   // at 1.25 scale (4 -> 5), so the grid and the panel agree.
