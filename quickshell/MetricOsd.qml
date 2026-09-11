@@ -39,19 +39,24 @@ PanelWindow {
   color: "transparent"
   aboveWindows: true
   focusable: false
-  exclusiveZone: 0
   exclusionMode: ExclusionMode.Ignore
+
+  // Input is confined to the box. The surface is full-screen so the box can be
+  // centred against the real screen, but a full-screen *input* region would
+  // mean every media keypress swallowed the next click anywhere on screen for
+  // the whole dismiss delay — and the media keys get used while something else
+  // has the pointer. So this one dismisses on the timer only, which is the
+  // "or appropriate time" half of the requirement.
+  // Knob: to get outside-click dismissal back, drop this mask and add a
+  // full-screen MouseArea that calls dismiss(), and accept the eaten click.
+  mask: Region {
+    item: box
+  }
 
   Timer {
     id: dismissTimer
     interval: osd.dismissDelay
     onTriggered: osd.dismiss()
-  }
-
-  MouseArea {
-    anchors.fill: parent
-    acceptedButtons: Qt.AllButtons
-    onPressed: osd.dismiss()
   }
 
   Rectangle {
@@ -64,10 +69,13 @@ PanelWindow {
     height: column.height + Theme.spaceSm * 2
     color: Theme.bg
 
-    // the box is not "outside", so it swallows its own presses
+    // absorbs presses that land on the box but not on the gauge (the border,
+    // the percentage) so they do nothing rather than falling through to the
+    // gauge's parent; the track's own MouseArea still handles dragging
     MouseArea {
       anchors.fill: parent
       acceptedButtons: Qt.AllButtons
+      onPressed: dismissTimer.restart()
     }
 
     Rectangle {

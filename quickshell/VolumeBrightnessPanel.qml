@@ -13,7 +13,10 @@ Scope {
   // out of the dismiss layer, and no dead strip between the two.
   readonly property int bandHeight: Math.round(modelData.height / 3)
   readonly property int barWidth: Theme.spaceXxl
-  readonly property int drawerWidth: Theme.spaceSm * 3 + barWidth * 2
+  // padding one step wider than the gap between the bars, so the pair reads as
+  // a group inside the box rather than two things equally spaced from
+  // everything. Lands on 96, the same width as the battery dropdown.
+  readonly property int drawerWidth: Theme.spaceMd * 2 + Theme.spaceSm + barWidth * 2
 
   // Dismissal delays are interaction timings rather than motion, so they are
   // multiples of the slowest motion token rather than tokens themselves.
@@ -159,7 +162,6 @@ Scope {
     color: "transparent"
     aboveWindows: true
     focusable: false
-    exclusiveZone: 0
     exclusionMode: ExclusionMode.Ignore
 
     // Collapsed, the only live pixels on this surface are a sliver at the very
@@ -306,7 +308,6 @@ Scope {
     color: "transparent"
     aboveWindows: true
     focusable: false
-    exclusiveZone: 0
     exclusionMode: ExclusionMode.Ignore
 
     mask: Region {
