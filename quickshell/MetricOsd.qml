@@ -39,6 +39,10 @@ PanelWindow {
   color: "transparent"
   aboveWindows: true
   focusable: false
+  // Deliberately no exclusiveZone here. In Quickshell setting one defeats
+  // ExclusionMode.Ignore: the surface stops reserving space but is still
+  // pushed out of other surfaces' exclusive zones, which shoved this off
+  // vertical centre by exactly the height of the bars above it.
   exclusionMode: ExclusionMode.Ignore
 
   // Input is confined to the box. The surface is full-screen so the box can be

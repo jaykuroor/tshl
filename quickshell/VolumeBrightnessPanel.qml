@@ -162,6 +162,10 @@ Scope {
     color: "transparent"
     aboveWindows: true
     focusable: false
+    // Deliberately no exclusiveZone here. In Quickshell setting one defeats
+    // ExclusionMode.Ignore: the surface stops reserving space but is still
+    // pushed out of other surfaces' exclusive zones, which shoved this off
+    // vertical centre by exactly the height of the bars above it.
     exclusionMode: ExclusionMode.Ignore
 
     // Collapsed, the only live pixels on this surface are a sliver at the very
@@ -308,6 +312,10 @@ Scope {
     color: "transparent"
     aboveWindows: true
     focusable: false
+    // Deliberately no exclusiveZone here. In Quickshell setting one defeats
+    // ExclusionMode.Ignore: the surface stops reserving space but is still
+    // pushed out of other surfaces' exclusive zones, which shoved this off
+    // vertical centre by exactly the height of the bars above it.
     exclusionMode: ExclusionMode.Ignore
 
     mask: Region {
