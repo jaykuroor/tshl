@@ -88,6 +88,10 @@ Singleton {
   readonly property color fg: "white"
   readonly property color bg: "black"
   readonly property color dim: "#8a8a8a"
+  // unlit. Dark enough to read as "off" next to fg, light enough that the
+  // full extent of a meter is still visible against bg — which is the job the
+  // old end caps were doing badly.
+  readonly property color off: "#3a3a3a"
 
   // --- structure -------------------------------------------------------------
   readonly property int barHeight: 36        // 4-grid, 45 device px

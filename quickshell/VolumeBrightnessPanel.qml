@@ -225,16 +225,9 @@ Scope {
           }
         }
 
-        Rectangle {
-          width: Theme.border
-          color: Theme.fg
-          anchors {
-            right: parent.right
-            top: parent.top
-            bottom: parent.bottom
-          }
-        }
-
+        // No right border: the drawer is hard against the screen edge, so an
+        // outline there draws a seam down the side of the display instead of
+        // closing the shape. Left, top and bottom only, matching the OSD.
         Rectangle {
           height: Theme.border
           color: Theme.fg
@@ -261,7 +254,7 @@ Scope {
 
           MetricControlBar {
             width: root.barWidth
-            height: drawer.height - Theme.spaceSm * 2
+            height: drawer.height - Theme.spaceMd * 2
             icon: ")))"
             value: root.volumeValue
             onInteractionStarted: {
@@ -277,7 +270,7 @@ Scope {
 
           MetricControlBar {
             width: root.barWidth
-            height: drawer.height - Theme.spaceSm * 2
+            height: drawer.height - Theme.spaceMd * 2
             icon: "*"
             value: root.brightnessValue
             onInteractionStarted: {
@@ -343,6 +336,7 @@ Scope {
   MetricOsd {
     id: osd
     modelData: root.modelData
+    bandHeight: root.bandHeight
     icon: root.osdMetric === "volume" ? ")))" : "*"
     value: root.osdMetric === "volume" ? root.volumeValue : root.brightnessValue
     onRequestedValue: value => root.osdMetric === "volume" ? root.setVolume(value) : root.setBrightness(value)
