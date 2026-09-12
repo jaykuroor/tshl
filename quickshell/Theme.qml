@@ -38,6 +38,14 @@ Singleton {
     return Math.max(device(1), Math.floor(px * theme.scale) / theme.scale);
   }
 
+  // nearest position on the panel's pixel grid. For a coordinate rather than a
+  // size: where two separately-drawn edges have to meet exactly — a border on
+  // one surface continuing into a border on another — a fraction of a logical
+  // pixel is enough to round the two apart and leave a notch at the join.
+  function align(px) {
+    return Math.round(px * theme.scale) / theme.scale;
+  }
+
   // --- spacing ---------------------------------------------------------------
   // 4px soft grid. Every multiple of 4 is also a whole number of device pixels
   // at 1.25 scale (4 -> 5), so the grid and the panel agree.

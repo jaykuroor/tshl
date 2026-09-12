@@ -48,11 +48,30 @@ Scope {
             color: Theme.bg
 
             property real outlineWidth: Theme.border
-            // the gap in the bottom border tracks the battery chip wherever it
-            // sits in the row, rather than assuming it is the rightmost thing
-            property real dropdownWidth: batteryStatus.menuVisible ? batteryStatus.menuTargetWidth : 0
-            property real dropdownLeft: statusGroup.x + batteryStatus.x
-            property real dropdownRight: dropdownLeft + dropdownWidth
+            // The menu hangs centred under the battery chip, so the chip sits
+            // dead centre above it.
+            //
+            // The gap punched in the bottom border is the menu's INTERIOR, not
+            // its full width. That difference is the whole trick: at full width
+            // the horizontal border stopped where the menu's vertical border
+            // began, so the two lines met corner-to-corner and left a notch the
+            // thickness of the border in both axes. Running the bottom border
+            // over the top of the menu's own side borders instead makes each
+            // corner a solid square and the outline continuous.
+            // aligned to the panel's pixel grid: the popup surface and this
+            // border are drawn by different surfaces, and a fractional x rounds
+            // the two apart by a pixel, which is exactly the notch it leaves
+            property real menuX: Theme.align(statusGroup.x + batteryStatus.x + (batteryStatus.width - batteryStatus.menuTargetWidth) / 2)
+            // One panel pixel of bias. The popup is a separate surface, and the
+            // compositor places it a pixel off where this window computes the
+            // same coordinate, so the two borders miss each other by one. The
+            // bias is toward OVERLAP on purpose: white over white is invisible,
+            // while one pixel the other way is the notch that shows.
+            // ponytail: if a compositor ever places popups exactly, this just
+            // becomes a 1px-thicker corner rather than a bug.
+            property real cornerBias: Theme.device(1)
+            property real dropdownLeft: batteryStatus.menuVisible ? menuX + outlineWidth + cornerBias : width
+            property real dropdownRight: batteryStatus.menuVisible ? menuX + batteryStatus.menuTargetWidth - outlineWidth + cornerBias : width
 
             Rectangle {
               height: barFrame.outlineWidth
@@ -109,7 +128,7 @@ Scope {
             // separate box that happens to be touching.
             Item {
               id: batteryMenuAnchor
-              x: barFrame.dropdownLeft
+              x: barFrame.menuX
               y: barFrame.height - height
               width: batteryStatus.menuTargetWidth
               height: 1
