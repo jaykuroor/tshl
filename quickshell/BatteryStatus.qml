@@ -2,21 +2,42 @@ import Quickshell
 import Quickshell.Services.UPower
 import QtQuick
 
+// Battery as a bordered chip with a segmented meter — the slider's vertical
+// ladder rotated. Same rules as that component: segments for a level, a border
+// because this one is clickable (it opens the profile menu), dim for unlit.
+//
+// Note what it deliberately does NOT do: reverse-video on hover, the way it
+// used to. A gauge cannot be inverted — on a white chip the only colour that
+// reads as filled is darker than the track, so a full battery would draw as a
+// solid black block. Hover lifts the background instead, and the unlit segments
+// switch to bg so they stay legible against it.
 Rectangle {
   id: batteryStatus
-  width: statusContent.implicitWidth + Theme.spaceXs * 2
-  color: activeHover ? Theme.fg : "transparent"
 
   property var popupParentWindow
   property var popupAnchorItem: batteryStatus
   property bool menuOpen: false
   property bool menuVisible: false
-  property bool activeHover: batteryMouse.containsMouse || menuOpen
-  // 12 monospace columns of body text (86.4) plus row and menu padding,
-  // rounded up onto the 4-grid. The old 120 left the labels floating.
-  property int menuTargetWidth: 96
+  property bool hovered: batteryMouse.containsMouse || menuOpen
+
+  readonly property int segmentCount: 10  // one segment per 10%
+
+  width: content.width + Theme.spaceSm * 2
+  color: hovered ? Theme.off : "transparent"
+  border.width: Theme.border
+  border.color: Theme.fg
+
+  // the menu drops directly under the chip and matches its width, so the gap it
+  // punches in the bar's bottom border lines up with the chip exactly
+  property int menuTargetWidth: Math.max(96, width)
   property int menuTargetHeight: profileItems.length * Theme.rowHeight + Theme.spaceXs * 2
   property real menuAnimatedHeight: menuOpen ? menuTargetHeight : 0
+
+  Behavior on color {
+    ColorAnimation {
+      duration: Theme.fast
+    }
+  }
 
   Behavior on menuAnimatedHeight {
     NumberAnimation {
@@ -28,25 +49,44 @@ Rectangle {
   property var battery: UPower.displayDevice
   property real rawPercentage: battery ? battery.percentage : -1
   property bool available: battery && battery.isPresent && rawPercentage >= 0
-  property int percentage: available
-    ? Math.round(rawPercentage <= 1 ? rawPercentage * 100 : rawPercentage)
-    : 0
-  property bool charging: battery && (
-    battery.state === UPowerDeviceState.Charging
-    || battery.state === UPowerDeviceState.FullyCharged
-  )
+  property int percentage: available ? Math.round(rawPercentage <= 1 ? rawPercentage * 100 : rawPercentage) : 0
+  property bool charging: battery && (battery.state === UPowerDeviceState.Charging || battery.state === UPowerDeviceState.FullyCharged)
+  readonly property int litCount: available ? Math.round(percentage / 100 * segmentCount) : 0
+
   property var profileItems: PowerProfiles.hasPerformanceProfile ? [
-    { "profile": PowerProfile.PowerSaver, "icon": "S", "label": "save" },
-    { "profile": PowerProfile.Balanced, "icon": "B", "label": "bal" },
-    { "profile": PowerProfile.Performance, "icon": "P", "label": "perf" }
+    {
+      "profile": PowerProfile.PowerSaver,
+      "icon": "S",
+      "label": "save"
+    },
+    {
+      "profile": PowerProfile.Balanced,
+      "icon": "B",
+      "label": "bal"
+    },
+    {
+      "profile": PowerProfile.Performance,
+      "icon": "P",
+      "label": "perf"
+    }
   ] : [
-    { "profile": PowerProfile.PowerSaver, "icon": "S", "label": "save" },
-    { "profile": PowerProfile.Balanced, "icon": "B", "label": "bal" }
+    {
+      "profile": PowerProfile.PowerSaver,
+      "icon": "S",
+      "label": "save"
+    },
+    {
+      "profile": PowerProfile.Balanced,
+      "icon": "B",
+      "label": "bal"
+    }
   ]
 
   function profileIcon(profile) {
-    if (profile === PowerProfile.PowerSaver) return "S";
-    if (profile === PowerProfile.Performance) return "P";
+    if (profile === PowerProfile.PowerSaver)
+      return "S";
+    if (profile === PowerProfile.Performance)
+      return "P";
     return "B";
   }
 
@@ -60,12 +100,6 @@ Rectangle {
     openMenuTimer.stop();
     menuOpen = false;
     closeMenuTimer.restart();
-  }
-
-  Behavior on color {
-    ColorAnimation {
-      duration: Theme.fast
-    }
   }
 
   Timer {
@@ -97,35 +131,20 @@ Rectangle {
   }
 
   Row {
-    id: statusContent
+    id: content
     anchors.centerIn: parent
-    anchors.verticalCenterOffset: Theme.textNudge
-    spacing: 0
-
-    property color targetTextColor: batteryStatus.activeHover ? Theme.bg : Theme.fg
-    property color textColor: targetTextColor
-
-    Behavior on textColor {
-      ColorAnimation {
-        duration: Theme.fast
-      }
-    }
-
-    Text {
-      color: statusContent.textColor
-      font.family: Theme.mono
-      font.weight: Theme.fontWeight
-      font.pixelSize: Theme.fontBody
-      text: "["
-    }
+    spacing: Theme.spaceSm
 
     Text {
       id: profileLetter
-      color: statusContent.textColor
+      anchors.verticalCenter: parent.verticalCenter
+      anchors.verticalCenterOffset: Theme.textNudge
+      color: Theme.fg
       font.family: Theme.mono
       font.weight: Theme.fontWeight
       font.pixelSize: Theme.fontBody
       text: batteryStatus.profileIcon(PowerProfiles.profile)
+
       SequentialAnimation {
         id: profileBlink
         loops: 2
@@ -144,37 +163,47 @@ Rectangle {
       }
     }
 
+    Row {
+      id: meter
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Theme.border
+
+      Repeater {
+        model: batteryStatus.segmentCount
+
+        delegate: Rectangle {
+          required property int index
+
+          width: Theme.spaceXs
+          height: Theme.spaceMd
+          // fills left to right, so the first delegate is the first to light
+          color: (index + 1) <= batteryStatus.litCount ? Theme.fg : batteryStatus.hovered ? Theme.bg : Theme.off
+
+          Behavior on color {
+            ColorAnimation {
+              duration: Theme.fast
+            }
+          }
+        }
+      }
+    }
+
+    // fixed-length monospace string, so the chip never changes width as the
+    // charge ticks over and the layout beside it never shifts
     Text {
-      color: statusContent.textColor
+      anchors.verticalCenter: parent.verticalCenter
+      anchors.verticalCenterOffset: Theme.textNudge
+      color: Theme.fg
       font.family: Theme.mono
       font.weight: Theme.fontWeight
       font.pixelSize: Theme.fontBody
-      text: batteryStatus.available
-        ? " " + batteryStatus.percentage + "%]" + (batteryStatus.charging ? "+" : "-")
-        : " --%] "
+      text: (batteryStatus.available ? batteryStatus.percentage.toString() : "--").padStart(3, " ") + (batteryStatus.charging ? "+" : " ")
     }
 
     Connections {
       target: PowerProfiles
       function onProfileChanged() {
-        statusPulse.restart();
         profileBlink.restart();
-      }
-    }
-
-    SequentialAnimation {
-      id: statusPulse
-      PropertyAction {
-        target: statusContent
-        property: "scale"
-        value: 1.12
-      }
-      NumberAnimation {
-        target: statusContent
-        property: "scale"
-        to: 1
-        duration: Theme.base
-        easing.type: Easing.OutBack
       }
     }
   }
@@ -190,8 +219,8 @@ Rectangle {
     anchor {
       window: batteryStatus.popupParentWindow
       item: batteryStatus.popupAnchorItem
-      edges: Edges.Bottom | Edges.Right
-      gravity: Edges.Bottom | Edges.Left
+      edges: Edges.Bottom | Edges.Left
+      gravity: Edges.Bottom | Edges.Right
       adjustment: PopupAdjustment.SlideX
       margins {
         top: 0
@@ -210,7 +239,6 @@ Rectangle {
       height: Math.max(1, batteryStatus.menuAnimatedHeight)
       color: Theme.bg
       clip: true
-      transformOrigin: Item.TopRight
 
       property real outlineWidth: Theme.border
 
@@ -299,13 +327,6 @@ Rectangle {
               Behavior on color {
                 ColorAnimation {
                   duration: Theme.fast
-                }
-              }
-
-              Behavior on x {
-                NumberAnimation {
-                  duration: Theme.fast
-                  easing.type: Theme.easing
                 }
               }
             }

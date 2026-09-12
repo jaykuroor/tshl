@@ -48,9 +48,11 @@ Scope {
             color: Theme.bg
 
             property real outlineWidth: Theme.border
-            property real dropdownRight: width
+            // the gap in the bottom border tracks the battery chip wherever it
+            // sits in the row, rather than assuming it is the rightmost thing
             property real dropdownWidth: batteryStatus.menuVisible ? batteryStatus.menuTargetWidth : 0
-            property real dropdownLeft: Math.max(0, dropdownRight - dropdownWidth)
+            property real dropdownLeft: statusGroup.x + batteryStatus.x
+            property real dropdownRight: dropdownLeft + dropdownWidth
 
             Rectangle {
               height: barFrame.outlineWidth
@@ -98,14 +100,6 @@ Scope {
               color: Theme.fg
             }
 
-            Item {
-              id: batteryMenuAnchor
-              x: barFrame.width - width
-              y: barFrame.height - height
-              width: batteryStatus.menuTargetWidth
-              height: 1
-            }
-
             WindowIcons {
               outputName: panel.screen.name
               anchors {
@@ -121,42 +115,29 @@ Scope {
               height: Theme.rowHeight
             }
 
-            Item {
+            // battery, date, time — one even rhythm rather than two groups.
+            // DateTimeStatus is itself a Row on the same spacing token, so the
+            // three read as equally spaced despite the nesting.
+            Row {
               id: statusGroup
               anchors {
                 right: parent.right
-                // 16 not 12: measured ink-to-ink, the gap between the two
-                // groups comes out at 20 logical once the glyph side bearings
-                // are counted, so the gap to the frame is matched to it by eye
-                // rather than on paper
                 rightMargin: Theme.spaceLg
                 verticalCenter: parent.verticalCenter
               }
-              // gaps ascend with separation: 8 inside a group, 16 between
-              // groups (8 margin plus each chip's 4 of padding), 32 between
-              // the bar's two regions
-              width: dateTimeStatus.width + Theme.spaceSm + batteryStatus.width
               height: Theme.rowHeight
-
-              DateTimeStatus {
-                id: dateTimeStatus
-                anchors {
-                  right: batteryStatus.left
-                  rightMargin: Theme.spaceSm
-                  verticalCenter: parent.verticalCenter
-                }
-                height: parent.height
-              }
+              spacing: Theme.spaceLg
 
               BatteryStatus {
                 id: batteryStatus
                 popupParentWindow: panel
-                popupAnchorItem: batteryMenuAnchor
-                anchors {
-                  right: parent.right
-                  verticalCenter: parent.verticalCenter
-                }
-                height: parent.height
+                anchors.verticalCenter: parent.verticalCenter
+                height: Theme.rowHeight
+              }
+
+              DateTimeStatus {
+                id: dateTimeStatus
+                anchors.verticalCenter: parent.verticalCenter
               }
             }
           }
