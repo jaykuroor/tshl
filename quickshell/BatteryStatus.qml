@@ -292,7 +292,9 @@ Rectangle {
     id: powerProfilePopup
     visible: batteryStatus.menuVisible
     implicitWidth: batteryStatus.menuTargetWidth
-    implicitHeight: batteryStatus.menuTargetHeight
+    // one border taller than the menu: the surface starts at the top of the
+    // panel's bottom border so that border can be carried down and back
+    implicitHeight: batteryStatus.menuTargetHeight + Theme.border
     color: "transparent"
     grabFocus: true
 
@@ -321,10 +323,14 @@ Rectangle {
         id: profileMenu
         width: parent.width
         height: batteryStatus.menuTargetHeight
-        // parked fully above the opening, so it drops out of the bar's bottom
-        // edge and tucks back into it. Driven by menuReveal rather than
-        // animating y directly, so the bar's border gap is on the same clock.
-        y: -height * (1 - batteryStatus.menuReveal)
+        // Fully retracted, the box sits exactly one border-width into the
+        // surface, so the only part of it left unclipped is its own bottom
+        // border — landing precisely where the panel's bottom border is drawn.
+        // Extending carries that line down; retracting carries it back. It is
+        // never partially clipped, so it is never thinner than the rest of the
+        // line, and at rest it is indistinguishable from the panel's border
+        // underneath it.
+        y: Theme.border - height * (1 - batteryStatus.menuReveal)
         color: Theme.bg
 
         property real outlineWidth: Theme.border

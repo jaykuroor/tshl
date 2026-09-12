@@ -126,10 +126,18 @@ Scope {
             // the bottom border lines up with the menu's side borders exactly,
             // which is what makes it read as the panel extruding rather than a
             // separate box that happens to be touching.
+            // Sits one border-width ABOVE the frame's bottom edge, so the popup
+            // begins at the TOP of the panel's bottom border rather than below
+            // it. That overlap is what lets the menu's bottom border be the
+            // panel's bottom border: it starts life exactly on top of it, is
+            // carried down as the menu extends, and is carried back. Anchored
+            // flush instead, the border had to be clipped into existence on the
+            // way out and clipped away on the way back, which is the frame
+            // where that stretch rendered thinner than the rest of the line.
             Item {
               id: batteryMenuAnchor
               x: barFrame.menuX
-              y: barFrame.height - height
+              y: barFrame.height - Theme.border - height
               width: batteryStatus.menuTargetWidth
               height: 1
             }
