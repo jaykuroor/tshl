@@ -100,6 +100,21 @@ Scope {
               color: Theme.fg
             }
 
+            // The menu hangs off the frame's bottom edge, not off the battery
+            // chip — the chip's own bottom sits a few px inside the bar, and
+            // anchoring there would start the menu inside the frame instead of
+            // growing out of it. Width matches the menu so the gap punched in
+            // the bottom border lines up with the menu's side borders exactly,
+            // which is what makes it read as the panel extruding rather than a
+            // separate box that happens to be touching.
+            Item {
+              id: batteryMenuAnchor
+              x: barFrame.dropdownLeft
+              y: barFrame.height - height
+              width: batteryStatus.menuTargetWidth
+              height: 1
+            }
+
             WindowIcons {
               outputName: panel.screen.name
               anchors {
@@ -126,11 +141,12 @@ Scope {
                 verticalCenter: parent.verticalCenter
               }
               height: Theme.rowHeight
-              spacing: Theme.spaceLg
+              spacing: Theme.spaceSm
 
               BatteryStatus {
                 id: batteryStatus
                 popupParentWindow: panel
+                popupAnchorItem: batteryMenuAnchor
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.rowHeight
               }

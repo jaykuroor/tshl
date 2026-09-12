@@ -2,15 +2,10 @@ import Quickshell
 import Quickshell.Services.UPower
 import QtQuick
 
-// Battery as a bordered chip with a segmented meter — the slider's vertical
-// ladder rotated. Same rules as that component: segments for a level, a border
-// because this one is clickable (it opens the profile menu), dim for unlit.
-//
-// Note what it deliberately does NOT do: reverse-video on hover, the way it
-// used to. A gauge cannot be inverted — on a white chip the only colour that
-// reads as filled is darker than the track, so a full battery would draw as a
-// solid black block. Hover lifts the background instead, and the unlit segments
-// switch to bg so they stay legible against it.
+// `[S 96%]-` — brackets for the cell, the trailing sign for charge direction.
+// Plain text that reverse-videoes on hover, which is safe here precisely
+// because there is no gauge in it: inversion only breaks on a meter, where the
+// filled end would have to be drawn dark and read as absence.
 Rectangle {
   id: batteryStatus
 
@@ -18,31 +13,17 @@ Rectangle {
   property var popupAnchorItem: batteryStatus
   property bool menuOpen: false
   property bool menuVisible: false
-  property bool hovered: batteryMouse.containsMouse || menuOpen
+  property bool activeHover: batteryMouse.containsMouse || menuOpen
 
-  readonly property int segmentCount: 10  // one segment per 10%
+  width: statusContent.width + Theme.spaceXs * 2
+  color: activeHover ? Theme.fg : "transparent"
 
-  width: content.width + Theme.spaceSm * 2
-  color: hovered ? Theme.off : "transparent"
-  border.width: Theme.border
-  border.color: Theme.fg
-
-  // the menu drops directly under the chip and matches its width, so the gap it
-  // punches in the bar's bottom border lines up with the chip exactly
   property int menuTargetWidth: Math.max(96, width)
   property int menuTargetHeight: profileItems.length * Theme.rowHeight + Theme.spaceXs * 2
-  property real menuAnimatedHeight: menuOpen ? menuTargetHeight : 0
 
   Behavior on color {
     ColorAnimation {
       duration: Theme.fast
-    }
-  }
-
-  Behavior on menuAnimatedHeight {
-    NumberAnimation {
-      duration: Theme.base
-      easing.type: Theme.easing
     }
   }
 
@@ -51,7 +32,44 @@ Rectangle {
   property bool available: battery && battery.isPresent && rawPercentage >= 0
   property int percentage: available ? Math.round(rawPercentage <= 1 ? rawPercentage * 100 : rawPercentage) : 0
   property bool charging: battery && (battery.state === UPowerDeviceState.Charging || battery.state === UPowerDeviceState.FullyCharged)
-  readonly property int litCount: available ? Math.round(percentage / 100 * segmentCount) : 0
+
+  // --- "only when the user did it" -------------------------------------------
+  // Both UPower and PowerProfiles publish their opening values as ordinary
+  // property changes, so a plain onProfileChanged fires once during startup and
+  // the indicator blinked at every login. There is no flag on the signal saying
+  // "this one was you", so the component ignores everything until the services
+  // have settled, and records the values it saw in the meantime.
+  property bool settled: false
+  property int knownProfile: -1
+  property int lastPercentage: -1
+
+  // levels that blink on the way down: 20, 15, and every value from 10 to 0
+  readonly property var alertLevels: [20, 15, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+
+  Timer {
+    // long enough for UPower and PowerProfiles to publish their initial state;
+    // this is a service-settling window, not a design value, so it is not a token
+    interval: 2000
+    running: true
+    onTriggered: {
+      batteryStatus.knownProfile = PowerProfiles.profile;
+      batteryStatus.lastPercentage = batteryStatus.percentage;
+      batteryStatus.settled = true;
+    }
+  }
+
+  onPercentageChanged: {
+    if (!settled) {
+      lastPercentage = percentage;
+      return;
+    }
+    // only on the way down, so "first reached" means the step into the level,
+    // and coming back up re-arms it
+    if (lastPercentage >= 0 && percentage < lastPercentage && alertLevels.indexOf(percentage) >= 0) {
+      percentBlink.restart();
+    }
+    lastPercentage = percentage;
+  }
 
   property var profileItems: PowerProfiles.hasPerformanceProfile ? [
     {
@@ -104,6 +122,7 @@ Rectangle {
 
   Timer {
     id: closeMenuTimer
+    // must outlast the slide, or the surface is torn down mid-animation
     interval: Theme.slow
     onTriggered: {
       if (!batteryStatus.menuOpen) {
@@ -114,6 +133,8 @@ Rectangle {
 
   Timer {
     id: openMenuTimer
+    // one frame, so the window is mapped before the slide starts from its
+    // closed position rather than being born halfway down
     interval: 32
     onTriggered: {
       if (batteryStatus.menuVisible) {
@@ -131,15 +152,30 @@ Rectangle {
   }
 
   Row {
-    id: content
+    id: statusContent
     anchors.centerIn: parent
-    spacing: Theme.spaceSm
+    anchors.verticalCenterOffset: Theme.textNudge
+    spacing: 0
+
+    property color textColor: batteryStatus.activeHover ? Theme.bg : Theme.fg
+
+    Behavior on textColor {
+      ColorAnimation {
+        duration: Theme.fast
+      }
+    }
+
+    Text {
+      color: statusContent.textColor
+      font.family: Theme.mono
+      font.weight: Theme.fontWeight
+      font.pixelSize: Theme.fontBody
+      text: "["
+    }
 
     Text {
       id: profileLetter
-      anchors.verticalCenter: parent.verticalCenter
-      anchors.verticalCenterOffset: Theme.textNudge
-      color: Theme.fg
+      color: statusContent.textColor
       font.family: Theme.mono
       font.weight: Theme.fontWeight
       font.pixelSize: Theme.fontBody
@@ -163,56 +199,82 @@ Rectangle {
       }
     }
 
-    Row {
-      id: meter
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: Theme.border
-
-      Repeater {
-        model: batteryStatus.segmentCount
-
-        delegate: Rectangle {
-          required property int index
-
-          width: Theme.spaceXs
-          height: Theme.spaceMd
-          // fills left to right, so the first delegate is the first to light
-          color: (index + 1) <= batteryStatus.litCount ? Theme.fg : batteryStatus.hovered ? Theme.bg : Theme.off
-
-          Behavior on color {
-            ColorAnimation {
-              duration: Theme.fast
-            }
-          }
-        }
-      }
-    }
-
-    // fixed-length monospace string, so the chip never changes width as the
-    // charge ticks over and the layout beside it never shifts
     Text {
-      anchors.verticalCenter: parent.verticalCenter
-      anchors.verticalCenterOffset: Theme.textNudge
-      color: Theme.fg
+      id: percentText
+      color: statusContent.textColor
       font.family: Theme.mono
       font.weight: Theme.fontWeight
       font.pixelSize: Theme.fontBody
-      text: (batteryStatus.available ? batteryStatus.percentage.toString() : "--").padStart(3, " ") + (batteryStatus.charging ? "+" : " ")
+      text: batteryStatus.available ? " " + batteryStatus.percentage + "%]" + (batteryStatus.charging ? "+" : "-") : " --%] "
+
+      // same shape and duration as the mode blink, so a low-battery step reads
+      // as the same kind of event
+      SequentialAnimation {
+        id: percentBlink
+        loops: 2
+        NumberAnimation {
+          target: percentText
+          property: "opacity"
+          to: 0
+          duration: Theme.base
+        }
+        NumberAnimation {
+          target: percentText
+          property: "opacity"
+          to: 1
+          duration: Theme.base
+        }
+      }
     }
 
     Connections {
       target: PowerProfiles
       function onProfileChanged() {
+        if (!batteryStatus.settled) {
+          batteryStatus.knownProfile = PowerProfiles.profile;
+          return;
+        }
+        if (PowerProfiles.profile === batteryStatus.knownProfile) {
+          return;
+        }
+        batteryStatus.knownProfile = PowerProfiles.profile;
+        statusPulse.restart();
         profileBlink.restart();
+      }
+    }
+
+    SequentialAnimation {
+      id: statusPulse
+      PropertyAction {
+        target: statusContent
+        property: "scale"
+        value: 1.12
+      }
+      NumberAnimation {
+        target: statusContent
+        property: "scale"
+        to: 1
+        duration: Theme.base
+        easing.type: Easing.OutBack
       }
     }
   }
 
+  // The window is a FIXED size and the menu slides down inside it, clipped.
+  //
+  // It used to set implicitWidth/implicitHeight from the menu's own animating
+  // height, so every frame of the open resized the Wayland popup surface — a
+  // configure round-trip per frame, which the compositor cannot interpolate.
+  // That is the same fault the volume drawer had. On top of it three animations
+  // ran at once on different properties and durations (the height, plus the
+  // rows' y and opacity), so the contents were easing against a box that was
+  // itself still moving. Now the surface never changes size and exactly one
+  // property animates: y.
   PopupWindow {
     id: powerProfilePopup
     visible: batteryStatus.menuVisible
-    implicitWidth: profileMenu.width
-    implicitHeight: profileMenu.height
+    implicitWidth: batteryStatus.menuTargetWidth
+    implicitHeight: batteryStatus.menuTargetHeight
     color: "transparent"
     grabFocus: true
 
@@ -233,53 +295,18 @@ Rectangle {
       }
     }
 
-    Rectangle {
-      id: profileMenu
-      width: batteryStatus.menuTargetWidth
-      height: Math.max(1, batteryStatus.menuAnimatedHeight)
-      color: Theme.bg
+    Item {
+      anchors.fill: parent
       clip: true
 
-      property real outlineWidth: Theme.border
-
       Rectangle {
-        width: profileMenu.outlineWidth
-        height: parent.height
-        color: Theme.fg
-        anchors.left: parent.left
-      }
-
-      Rectangle {
-        width: profileMenu.outlineWidth
-        height: parent.height
-        color: Theme.fg
-        anchors.right: parent.right
-      }
-
-      Rectangle {
-        height: profileMenu.outlineWidth
-        color: Theme.fg
-        anchors {
-          left: parent.left
-          right: parent.right
-          bottom: parent.bottom
-        }
-      }
-
-      Column {
-        x: Theme.spaceXs
-        y: batteryStatus.menuOpen ? Theme.spaceXs : -Theme.spaceMd
-        width: parent.width - Theme.spaceXs * 2
-        // contiguous rows: the hover fill reads as one band instead of stripes
-        spacing: 0
-        opacity: batteryStatus.menuOpen ? 1 : 0
-
-        Behavior on opacity {
-          NumberAnimation {
-            duration: Theme.fast
-            easing.type: Theme.easing
-          }
-        }
+        id: profileMenu
+        width: parent.width
+        height: batteryStatus.menuTargetHeight
+        // parked fully above the opening, so it drops out of the bar's bottom
+        // edge and tucks back into it
+        y: batteryStatus.menuOpen ? 0 : -height
+        color: Theme.bg
 
         Behavior on y {
           NumberAnimation {
@@ -288,82 +315,116 @@ Rectangle {
           }
         }
 
-        Repeater {
-          model: batteryStatus.profileItems
+        property real outlineWidth: Theme.border
 
-          Rectangle {
-            id: profileRow
-            width: parent.width
-            height: Theme.rowHeight
-            color: inverted ? Theme.fg : "transparent"
+        Rectangle {
+          width: profileMenu.outlineWidth
+          height: parent.height
+          color: Theme.fg
+          anchors.left: parent.left
+        }
 
-            property bool active: PowerProfiles.profile === modelData.profile
-            property bool inverted: profileMouse.containsMouse || active
+        Rectangle {
+          width: profileMenu.outlineWidth
+          height: parent.height
+          color: Theme.fg
+          anchors.right: parent.right
+        }
 
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.fast
-              }
-            }
+        Rectangle {
+          height: profileMenu.outlineWidth
+          color: Theme.fg
+          anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+          }
+        }
 
-            Text {
-              id: rowText
-              anchors {
-                left: parent.left
-                right: parent.right
-                verticalCenter: parent.verticalCenter
-                verticalCenterOffset: Theme.textNudge
-              }
-              leftPadding: Theme.spaceXs
-              rightPadding: Theme.spaceXs
-              color: profileRow.inverted ? Theme.bg : Theme.fg
-              font.family: Theme.mono
-              font.weight: Theme.fontWeight
-              font.pixelSize: Theme.fontBody
-              horizontalAlignment: Text.AlignLeft
-              verticalAlignment: Text.AlignVCenter
-              text: (profileRow.active ? ">" : " ") + modelData.icon + " [" + modelData.label + "]"
+        Column {
+          x: Theme.spaceXs
+          y: Theme.spaceXs
+          width: parent.width - Theme.spaceXs * 2
+          // contiguous rows: the hover fill reads as one band instead of stripes
+          spacing: 0
+
+          Repeater {
+            model: batteryStatus.profileItems
+
+            Rectangle {
+              id: profileRow
+              width: parent.width
+              height: Theme.rowHeight
+              color: inverted ? Theme.fg : "transparent"
+
+              property bool active: PowerProfiles.profile === modelData.profile
+              property bool inverted: profileMouse.containsMouse || active
 
               Behavior on color {
                 ColorAnimation {
                   duration: Theme.fast
                 }
               }
-            }
 
-            Rectangle {
-              anchors {
-                right: parent.right
-                rightMargin: Theme.spaceXs
-                verticalCenter: parent.verticalCenter
-              }
-              width: profileRow.active ? Theme.spaceXs : 0
-              height: Theme.spaceXs
-              color: profileRow.inverted ? Theme.bg : Theme.fg
-              opacity: profileRow.active ? 1 : 0
+              Text {
+                id: rowText
+                anchors {
+                  left: parent.left
+                  right: parent.right
+                  verticalCenter: parent.verticalCenter
+                  verticalCenterOffset: Theme.textNudge
+                }
+                leftPadding: Theme.spaceXs
+                rightPadding: Theme.spaceXs
+                color: profileRow.inverted ? Theme.bg : Theme.fg
+                font.family: Theme.mono
+                font.weight: Theme.fontWeight
+                font.pixelSize: Theme.fontBody
+                horizontalAlignment: Text.AlignLeft
+                verticalAlignment: Text.AlignVCenter
+                text: (profileRow.active ? ">" : " ") + modelData.icon + " [" + modelData.label + "]"
 
-              Behavior on width {
-                NumberAnimation {
-                  duration: Theme.fast
-                  easing.type: Easing.OutBack
+                Behavior on color {
+                  ColorAnimation {
+                    duration: Theme.fast
+                  }
                 }
               }
 
-              Behavior on opacity {
-                NumberAnimation {
-                  duration: Theme.fast
+              Rectangle {
+                anchors {
+                  right: parent.right
+                  rightMargin: Theme.spaceXs
+                  verticalCenter: parent.verticalCenter
+                }
+                width: profileRow.active ? Theme.spaceXs : 0
+                height: Theme.spaceXs
+                color: profileRow.inverted ? Theme.bg : Theme.fg
+                opacity: profileRow.active ? 1 : 0
+
+                Behavior on width {
+                  NumberAnimation {
+                    duration: Theme.fast
+                    easing.type: Easing.OutBack
+                  }
+                }
+
+                Behavior on opacity {
+                  NumberAnimation {
+                    duration: Theme.fast
+                  }
                 }
               }
-            }
 
-            MouseArea {
-              id: profileMouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-              onClicked: {
-                PowerProfiles.profile = modelData.profile;
-                batteryStatus.closeMenu();
+              MouseArea {
+                id: profileMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: {
+                  PowerProfiles.profile = modelData.profile;
+                  batteryStatus.closeMenu();
+                }
               }
             }
           }
