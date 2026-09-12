@@ -70,8 +70,8 @@ Scope {
             // ponytail: if a compositor ever places popups exactly, this just
             // becomes a 1px-thicker corner rather than a bug.
             property real cornerBias: Theme.device(1)
-            property real dropdownLeft: batteryStatus.menuVisible ? menuX + outlineWidth + cornerBias : width
-            property real dropdownRight: batteryStatus.menuVisible ? menuX + batteryStatus.menuTargetWidth - outlineWidth + cornerBias : width
+            property real dropdownLeft: batteryStatus.menuExtended ? menuX + outlineWidth + cornerBias : width
+            property real dropdownRight: batteryStatus.menuExtended ? menuX + batteryStatus.menuTargetWidth - outlineWidth + cornerBias : width
 
             Rectangle {
               height: barFrame.outlineWidth

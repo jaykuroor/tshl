@@ -21,6 +21,24 @@ Rectangle {
   property int menuTargetWidth: Math.max(96, width)
   property int menuTargetHeight: profileItems.length * Theme.rowHeight + Theme.spaceXs * 2
 
+  // 0 = fully retracted behind the bar, 1 = fully extended.
+  //
+  // The slide lives here rather than on the menu's own y so the bar can open
+  // its bottom-border gap off the same number. Bound to menuVisible instead,
+  // the gap stayed open for the whole close delay — which has to outlast the
+  // slide so the surface is not torn down mid-animation — and for the ~120ms
+  // between the menu finishing its retract and the popup unmapping, the border
+  // had a hole in it with nothing in front of it.
+  property real menuReveal: menuOpen ? 1 : 0
+  readonly property bool menuExtended: menuReveal > 0
+
+  Behavior on menuReveal {
+    NumberAnimation {
+      duration: Theme.base
+      easing.type: Theme.easing
+    }
+  }
+
   Behavior on color {
     ColorAnimation {
       duration: Theme.fast
@@ -304,16 +322,10 @@ Rectangle {
         width: parent.width
         height: batteryStatus.menuTargetHeight
         // parked fully above the opening, so it drops out of the bar's bottom
-        // edge and tucks back into it
-        y: batteryStatus.menuOpen ? 0 : -height
+        // edge and tucks back into it. Driven by menuReveal rather than
+        // animating y directly, so the bar's border gap is on the same clock.
+        y: -height * (1 - batteryStatus.menuReveal)
         color: Theme.bg
-
-        Behavior on y {
-          NumberAnimation {
-            duration: Theme.base
-            easing.type: Theme.easing
-          }
-        }
 
         property real outlineWidth: Theme.border
 
